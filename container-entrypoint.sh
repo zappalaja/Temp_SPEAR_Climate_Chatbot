@@ -9,6 +9,37 @@ set -e
 LOG_DIR="/app/logs"
 mkdir -p "$LOG_DIR"
 
+# ---------- Check for API keys ----------
+if [ -z "$GEMINI_API_KEY" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo ""
+    echo "============================================================"
+    echo "  ERROR: No API key provided."
+    echo "============================================================"
+    echo ""
+    echo "  At least one LLM API key is required to run the chatbot."
+    echo ""
+    echo "  Pass keys with -e flags:"
+    echo "    podman run -e GEMINI_API_KEY=your_key -p 8501:8501 spear-earth-system-data-assistant"
+    echo ""
+    echo "  Or create an env file and pass it:"
+    echo "    podman run --env-file your.env -p 8501:8501 spear-earth-system-data-assistant"
+    echo ""
+    echo "  Supported keys: GEMINI_API_KEY, ANTHROPIC_API_KEY"
+    echo "============================================================"
+    exit 1
+fi
+
+echo ""
+echo "============================================================"
+echo "  SPEAR Earth System Data Assistant"
+echo "============================================================"
+echo ""
+
+# Show which providers are configured
+[ -n "$GEMINI_API_KEY" ]    && echo "  Gemini API:    configured"
+[ -n "$ANTHROPIC_API_KEY" ] && echo "  Anthropic API: configured"
+echo ""
+
 # Cleanup on exit
 cleanup() {
     echo "Shutting down services..."
