@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code (excluding .env - API keys passed at runtime)
 COPY *.py *.yaml ./
+COPY pages/ ./pages/
 
 # Create logs directory
 RUN mkdir -p chat_logs
@@ -48,4 +49,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
 # Run Streamlit app
-CMD ["streamlit", "run", "chatbot_app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD ["streamlit", "run", "SPEAR_Earth_System_Data_Assistant.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]

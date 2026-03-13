@@ -1,15 +1,15 @@
 """MCP tool script for working with CMIP6 Zarr data on AWS S3."""
 
-import asyncio
 from typing import List, Dict, Optional, Any
 import warnings
 warnings.filterwarnings('ignore')
 
 import numpy as np
-import pandas as pd
 import xarray as xr
 import s3fs
 import logging
+
+from .coord_utils import subset_spatial
 
 logger = logging.getLogger(__name__)
 
@@ -201,49 +201,8 @@ def query_zarr_data(
         # Select variable
         data_var = ds[variable]
 
-        # Track coordinate adjustments
-        coordinate_adjustments = {}
-
-        # Apply spatial subsetting
-        if lat_range and 'lat' in ds.coords:
-            lat_vals = ds['lat'].values
-            lat_min, lat_max = float(lat_vals.min()), float(lat_vals.max())
-
-            req_lat_min, req_lat_max = lat_range[0], lat_range[1]
-            clamped_lat_min = max(req_lat_min, lat_min)
-            clamped_lat_max = min(req_lat_max, lat_max)
-
-            nearest_lat_min = float(ds['lat'].sel(lat=clamped_lat_min, method='nearest').values)
-            nearest_lat_max = float(ds['lat'].sel(lat=clamped_lat_max, method='nearest').values)
-
-            if abs(nearest_lat_min - req_lat_min) > 0.01 or abs(nearest_lat_max - req_lat_max) > 0.01:
-                coordinate_adjustments['latitude'] = {
-                    'requested': [req_lat_min, req_lat_max],
-                    'actual': [nearest_lat_min, nearest_lat_max],
-                    'reason': 'snapped to nearest grid points'
-                }
-
-            data_var = data_var.sel(lat=slice(nearest_lat_min, nearest_lat_max))
-
-        if lon_range and 'lon' in ds.coords:
-            lon_vals = ds['lon'].values
-            lon_min, lon_max = float(lon_vals.min()), float(lon_vals.max())
-
-            req_lon_min, req_lon_max = lon_range[0], lon_range[1]
-            clamped_lon_min = max(req_lon_min, lon_min)
-            clamped_lon_max = min(req_lon_max, lon_max)
-
-            nearest_lon_min = float(ds['lon'].sel(lon=clamped_lon_min, method='nearest').values)
-            nearest_lon_max = float(ds['lon'].sel(lon=clamped_lon_max, method='nearest').values)
-
-            if abs(nearest_lon_min - req_lon_min) > 0.01 or abs(nearest_lon_max - req_lon_max) > 0.01:
-                coordinate_adjustments['longitude'] = {
-                    'requested': [req_lon_min, req_lon_max],
-                    'actual': [nearest_lon_min, nearest_lon_max],
-                    'reason': 'snapped to nearest grid points'
-                }
-
-            data_var = data_var.sel(lon=slice(nearest_lon_min, nearest_lon_max))
+        # Spatial subsetting with automatic coordinate conversion
+        data_var, coordinate_adjustments = subset_spatial(data_var, ds, lat_range, lon_range)
 
         # Apply temporal subsetting
         if start_date or end_date:
@@ -338,26 +297,8 @@ def get_zarr_summary_statistics(
 
         data_var = ds[variable]
 
-        # Apply spatial subsetting with nearest neighbor (same as query_zarr_data)
-        if lat_range and 'lat' in ds.coords:
-            lat_vals = ds['lat'].values
-            lat_min, lat_max = float(lat_vals.min()), float(lat_vals.max())
-            req_lat_min, req_lat_max = lat_range[0], lat_range[1]
-            clamped_lat_min = max(req_lat_min, lat_min)
-            clamped_lat_max = min(req_lat_max, lat_max)
-            nearest_lat_min = float(ds['lat'].sel(lat=clamped_lat_min, method='nearest').values)
-            nearest_lat_max = float(ds['lat'].sel(lat=clamped_lat_max, method='nearest').values)
-            data_var = data_var.sel(lat=slice(nearest_lat_min, nearest_lat_max))
-
-        if lon_range and 'lon' in ds.coords:
-            lon_vals = ds['lon'].values
-            lon_min, lon_max = float(lon_vals.min()), float(lon_vals.max())
-            req_lon_min, req_lon_max = lon_range[0], lon_range[1]
-            clamped_lon_min = max(req_lon_min, lon_min)
-            clamped_lon_max = min(req_lon_max, lon_max)
-            nearest_lon_min = float(ds['lon'].sel(lon=clamped_lon_min, method='nearest').values)
-            nearest_lon_max = float(ds['lon'].sel(lon=clamped_lon_max, method='nearest').values)
-            data_var = data_var.sel(lon=slice(nearest_lon_min, nearest_lon_max))
+        # Spatial subsetting with automatic coordinate conversion
+        data_var, _ = subset_spatial(data_var, ds, lat_range, lon_range)
 
         if start_date or end_date:
             time_slice = {}

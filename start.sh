@@ -31,8 +31,8 @@ CHATBOT_PORT=8501
 
 # PID and log files
 PID_DIR="/tmp/climate_chatbot_zarr_pids"
-LOG_DIR="$PID_DIR"
-mkdir -p "$PID_DIR"
+LOG_DIR="${LOG_DIR:-$PID_DIR}"
+mkdir -p "$PID_DIR" "$LOG_DIR"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -256,4 +256,4 @@ echo "============================================================"
 echo ""
 
 # Run chatbot in foreground (trap will handle cleanup on Ctrl+C)
-streamlit run chatbot_app.py --server.port $CHATBOT_PORT
+streamlit run SPEAR_Earth_System_Data_Assistant.py --server.port $CHATBOT_PORT

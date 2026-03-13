@@ -1,9 +1,6 @@
 """MCP tool script for working with the public SPEAR NetCDF output on AWS server."""
-# Copied from other tools.py. Will clean up later!
-import asyncio
-import calendar
 from typing import Annotated, List, Dict, Optional, Tuple, Union, Any
-from urllib.parse import quote, urlparse, urljoin
+from urllib.parse import quote
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -15,17 +12,17 @@ from async_lru import alru_cache
 from loguru import logger
 from pydantic import Field, HttpUrl
 import cftime
-from bs4 import BeautifulSoup
 import re
 import logging
 import tempfile
 import os
 import json
 import s3fs
-import cftime
 import datetime
 from datetime import datetime as dt
 import sys
+
+from .coord_utils import subset_spatial, convert_lon, detect_lon_convention
 
 # Global variables to cache loaded dataset (necessary).
 _cached_dataset = None
@@ -498,17 +495,26 @@ def validate_query_parameters(
                 if end_date < file_start:
                     errors.append(f"End date {end_date} is before file start {file_start}")
         
-        # Validate spatial range.
+        # Validate spatial range (with coordinate convention conversion).
         if "spatial_range" in file_info:
             if "latitude" in file_info["spatial_range"] and lat_range:
                 file_lat = file_info["spatial_range"]["latitude"]
-                if lat_range[0] < file_lat[0] or lat_range[1] > file_lat[1]:
+                req_lat = sorted([lat_range[0], lat_range[1]])
+                if req_lat[0] < file_lat[0] or req_lat[1] > file_lat[1]:
                     warnings.append(f"Requested lat range {lat_range} extends beyond file range {file_lat}")
-            
+
             if "longitude" in file_info["spatial_range"] and lon_range:
                 file_lon = file_info["spatial_range"]["longitude"]
-                if lon_range[0] < file_lon[0] or lon_range[1] > file_lon[1]:
-                    warnings.append(f"Requested lon range {lon_range} extends beyond file range {file_lon}")
+                # Convert user longitudes to dataset convention before comparing
+                if file_lon[1] > 180:
+                    conv_lon = sorted([lon_range[0] % 360, lon_range[1] % 360])
+                else:
+                    conv_lon = sorted([lon_range[0], lon_range[1]])
+                if conv_lon[0] < file_lon[0] or conv_lon[1] > file_lon[1]:
+                    warnings.append(
+                        f"Requested lon range {lon_range} (converted: {conv_lon}) "
+                        f"extends beyond file range {file_lon}"
+                    )
         
         return {
             "valid": len(errors) == 0,
@@ -695,58 +701,9 @@ def query_netcdf_data(
 
         data_var = ds[variable]
 
-        # Track coordinate adjustments for transparency
-        coordinate_adjustments = {}
+        # Spatial subsetting with automatic coordinate conversion
+        data_var, coordinate_adjustments = subset_spatial(data_var, ds, lat_range, lon_range)
 
-        # Extract spatial selection using nearest neighbor for boundary points
-        if lat_range and 'lat' in ds.coords:
-            # Get actual lat values in the dataset
-            lat_vals = ds['lat'].values
-            lat_min, lat_max = float(lat_vals.min()), float(lat_vals.max())
-
-            # Clamp requested range to valid range and find nearest points
-            req_lat_min, req_lat_max = lat_range[0], lat_range[1]
-            clamped_lat_min = max(req_lat_min, lat_min)
-            clamped_lat_max = min(req_lat_max, lat_max)
-
-            # Find nearest grid points to requested boundaries
-            nearest_lat_min = float(ds['lat'].sel(lat=clamped_lat_min, method='nearest').values)
-            nearest_lat_max = float(ds['lat'].sel(lat=clamped_lat_max, method='nearest').values)
-
-            # Record if adjustment was made
-            if abs(nearest_lat_min - req_lat_min) > 0.01 or abs(nearest_lat_max - req_lat_max) > 0.01:
-                coordinate_adjustments['latitude'] = {
-                    'requested': [req_lat_min, req_lat_max],
-                    'actual': [nearest_lat_min, nearest_lat_max],
-                    'reason': 'snapped to nearest grid points'
-                }
-
-            data_var = data_var.sel(lat=slice(nearest_lat_min, nearest_lat_max))
-
-        if lon_range and 'lon' in ds.coords:
-            # Get actual lon values in the dataset
-            lon_vals = ds['lon'].values
-            lon_min, lon_max = float(lon_vals.min()), float(lon_vals.max())
-
-            # Clamp requested range to valid range and find nearest points
-            req_lon_min, req_lon_max = lon_range[0], lon_range[1]
-            clamped_lon_min = max(req_lon_min, lon_min)
-            clamped_lon_max = min(req_lon_max, lon_max)
-
-            # Find nearest grid points to requested boundaries
-            nearest_lon_min = float(ds['lon'].sel(lon=clamped_lon_min, method='nearest').values)
-            nearest_lon_max = float(ds['lon'].sel(lon=clamped_lon_max, method='nearest').values)
-
-            # Record if adjustment was made
-            if abs(nearest_lon_min - req_lon_min) > 0.01 or abs(nearest_lon_max - req_lon_max) > 0.01:
-                coordinate_adjustments['longitude'] = {
-                    'requested': [req_lon_min, req_lon_max],
-                    'actual': [nearest_lon_min, nearest_lon_max],
-                    'reason': 'snapped to nearest grid points'
-                }
-
-            data_var = data_var.sel(lon=slice(nearest_lon_min, nearest_lon_max))
-        
         # Extract temporal selection.
         if start_date or end_date:
             time_slice = {}
@@ -860,12 +817,10 @@ def get_data_summary_statistics(
         ds = load_dataset_if_needed(scenario, ensemble_member, frequency, variable, grid, version,
                                      start_date=start_date, end_date=end_date)
         data_var = ds[variable]
-        
-        # Apply selections.
-        if lat_range and 'lat' in ds.coords:
-            data_var = data_var.sel(lat=slice(lat_range[0], lat_range[1]))
-        if lon_range and 'lon' in ds.coords:
-            data_var = data_var.sel(lon=slice(lon_range[0], lon_range[1]))
+
+        # Spatial subsetting with automatic coordinate conversion
+        data_var, _ = subset_spatial(data_var, ds, lat_range, lon_range)
+
         if start_date or end_date:
             time_slice = {}
             if start_date:

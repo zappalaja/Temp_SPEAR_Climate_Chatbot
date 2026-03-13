@@ -21,9 +21,6 @@ OLLAMA_TOOLS = [
             },
         },
     },
-    # NOTE: browse_spear_directory and search_spear_variables have been REMOVED.
-    # All paths, variables, and file mappings are precomputed in spear_data_paths.py.
-    # The bot should use query_netcdf_data DIRECTLY without browsing or searching.
     {
         "type": "function",
         "function": {

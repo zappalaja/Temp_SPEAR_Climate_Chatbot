@@ -6,7 +6,7 @@ import asyncio
 from fastmcp import FastMCP
 from loguru import logger
 from starlette.requests import Request
-from starlette.responses import PlainTextResponse
+from starlette.responses import PlainTextResponse, JSONResponse
 
 from . import tools, tools_nc, tools_zarr
 
@@ -174,6 +174,19 @@ async def create_server() -> FastMCP:
     @mcp.custom_route('/health', methods=['GET'])
     async def health_check(request: Request) -> PlainTextResponse:
         return PlainTextResponse('OK')
+
+    # Expose registered tools as a REST endpoint for the Streamlit UI.
+    @mcp.custom_route('/tools', methods=['GET'])
+    async def list_tools(request: Request) -> JSONResponse:
+        tool_list = []
+        tools = await mcp._tool_manager.list_tools()
+        for t in tools:
+            tool_list.append({
+                "name": t.name,
+                "description": t.description or "",
+                "parameters": t.parameters,
+            })
+        return JSONResponse(tool_list)
 
     return mcp
 

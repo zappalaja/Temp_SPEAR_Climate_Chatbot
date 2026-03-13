@@ -21,6 +21,18 @@ venv/
 chat_logs/
 logs/
 
+# Bug fix notes
+chatbot/RAG_TOOL_FIXES.md
+chatbot/STREAMING_TOOL_BUG_FIX.md
+chatbot/BUGFIXES.md
+chatbot/CONTEXT_MEMORY_FIX.md
+
+# Podman/container scripts (kept locally for future containerization)
+chatbot/start.sh
+chatbot/start-chatbot.sh
+chatbot/rebuild.sh
+chatbot/logs.sh
+
 # IDE
 .idea/
 .vscode/
@@ -30,6 +42,10 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Ingestion intermediate artifacts
+rag-service/ingestion/nougat_outputs/
+rag-service/ingestion/nougat_logs/
 
 # UV
 .python-version

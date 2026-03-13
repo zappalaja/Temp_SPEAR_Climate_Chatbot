@@ -3,11 +3,11 @@ AI Configuration
 This file contains all AI-related settings for easy maintenance.
 """
 
+import os
 from knowledge_base_loader import build_knowledge_base_prompt
 
 # Provider Configuration
-DEFAULT_PROVIDER = "claude"  # 'claude' or 'gemini' (Ollama disabled for container deployment)
-# NOTE: Switched to Claude because Gemini is unreliable with tools in multi-turn conversations
+DEFAULT_PROVIDER = "gemini"  # 'claude' or 'gemini' (Ollama disabled for container deployment)
 
 # Ollama Model Configuration (disabled for container deployment)
 # MODEL_NAME = "qwen2.5:32b-instruct-q8_0"
@@ -431,7 +431,6 @@ Example: "Note: Your requested coordinates were snapped to the nearest SPEAR gri
 # Build complete system prompt by combining base prompt with knowledge base
 # Temporarily use only BASE_SYSTEM_PROMPT for reliable tool calling
 # The full knowledge base (38KB) overwhelms Gemini and prevents tool usage
-# TODO: Re-enable knowledge base once tool calling is stable, or switch to Claude
 SYSTEM_PROMPT = BASE_SYSTEM_PROMPT
 # SYSTEM_PROMPT = BASE_SYSTEM_PROMPT + build_knowledge_base_prompt()  # Disabled for now
 
@@ -464,4 +463,4 @@ API_VERSION = "2023-06-01"
 
 # Additional system settings
 CACHE_PATH = "/tmp/mcp_cache"
-LOG_PATH = "logs/mcp_wrapper.log"
+LOG_PATH = os.getenv("CHAT_LOG_DIR", "logs") + "/mcp_wrapper.log"

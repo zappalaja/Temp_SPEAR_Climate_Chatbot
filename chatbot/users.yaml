@@ -4,6 +4,10 @@ cookie:
   name: spear_chatbot_auth
 credentials:
   usernames:
+    Jake2:
+      avatar: Princeton CIMES.png
+      name: Jake2
+      password: $2b$12$/njizVzODRRkxJ4U0hTLy.8ZliCErPgC3/loDflNVgIyIcT0kqRtS
     JakeZ:
       avatar: Geophysical Fluid Dynamics Laboratory.png
       name: JakeZ

@@ -21,4 +21,4 @@ if [ ! -f .env ]; then
 fi 
 
 # run the app
-streamlit run chatbot_app.py
+streamlit run SPEAR_Earth_System_Data_Assistant.py

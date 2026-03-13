@@ -133,6 +133,67 @@ def get_bot_avatar():
         return None
 
 
+def render_sidebar_profile(page_key: str = ""):
+    """Render the user profile section in the sidebar. Safe to call on any page.
+
+    Args:
+        page_key: unique prefix to avoid widget key collisions across pages.
+    """
+    if not AUTH_ENABLED:
+        return
+    if not st.session_state.get("authentication_status"):
+        return
+
+    username = st.session_state.get("username", "unknown")
+    user_avatar = get_user_avatar(username)
+    pk = f"{page_key}_" if page_key else ""
+
+    with st.sidebar:
+        if user_avatar is not None:
+            st.image(user_avatar, width=50)
+        st.caption(f"Logged in as: **{st.session_state.get('name', username)}**")
+
+        try:
+            import streamlit_authenticator as stauth
+            import yaml
+            from yaml.loader import SafeLoader
+            config = _load_config(yaml, SafeLoader)
+            authenticator = stauth.Authenticate(
+                config["credentials"],
+                config["cookie"]["name"],
+                config["cookie"]["key"],
+                config["cookie"]["expiry_days"],
+            )
+            authenticator.logout("Logout", "sidebar", key=f"{pk}logout")
+        except Exception:
+            pass
+
+        with st.expander("Edit Profile"):
+            new_name = st.text_input(
+                "Display name",
+                value=st.session_state.get("name", username),
+                key=f"{pk}edit_profile_name",
+            )
+            avatar_files = _get_avatar_files()
+            if avatar_files:
+                st.write("Choose a profile picture:")
+                new_avatar = _avatar_selector(
+                    key=f"{pk}edit_profile_avatar",
+                    current=st.session_state.get("_user_avatar"),
+                )
+            else:
+                new_avatar = st.session_state.get("_user_avatar")
+            if st.button("Save Changes", key=f"{pk}save_profile"):
+                ok, err = update_user_profile(username, new_name.strip(), new_avatar)
+                if ok:
+                    st.success("Profile updated!")
+                    st.rerun()
+                else:
+                    st.error(f"Failed to save changes: {err}")
+
+        st.divider()
+
+
 def update_user_profile(username, new_name, new_avatar_file):
     """
     Save display name and/or avatar changes for a user to users.yaml.

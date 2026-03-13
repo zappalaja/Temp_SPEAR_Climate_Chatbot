@@ -10,7 +10,6 @@ from variable_definitions import *
 from spear_model_info import *
 from confidence_assessment import CONFIDENCE_ASSESSMENT_INSTRUCTIONS
 from document_processor import build_documents_prompt
-from response_size_estimator import format_size_warning, suggest_alternatives
 from spear_data_paths import (
     QUICK_REFERENCE, DIRECT_ACCESS_GUIDE, SCENARIOS as DATA_SCENARIOS,
     VARIABLES, VARIABLE_ALIASES, ENSEMBLE_MEMBERS, FREQUENCIES,
@@ -294,78 +293,3 @@ def build_knowledge_base_prompt():
     prompt += "=" * 80 + "\n"
 
     return prompt
-
-
-def get_variable_info(variable_name):
-    """
-    Get detailed information about a specific variable.
-
-    Args:
-        variable_name: Short name (e.g., 'tas', 'pr')
-
-    Returns:
-        Dictionary with variable information or None if not found
-    """
-    return ALL_VARIABLES.get(variable_name)
-
-
-def get_scenario_info(scenario_name):
-    """
-    Get detailed information about a specific scenario.
-
-    Args:
-        scenario_name: Scenario name (e.g., 'historical', 'scenarioSSP5-85')
-
-    Returns:
-        Dictionary with scenario information or None if not found
-    """
-    return SCENARIOS.get(scenario_name)
-
-
-def format_ensemble_name(r=1, i=1, p=1, f=1):
-    """
-    Format ensemble member name from components.
-
-    Args:
-        r: Realization number
-        i: Initialization number
-        p: Physics number
-        f: Forcing number
-
-    Returns:
-        Formatted string (e.g., 'r1i1p1f1')
-    """
-    return f"r{r}i{i}p{p}f{f}"
-
-
-def explain_ensemble_name(ensemble_str):
-    """
-    Explain what an ensemble member name means.
-
-    Args:
-        ensemble_str: Ensemble name (e.g., 'r15i1p1f1')
-
-    Returns:
-        Human-readable explanation
-    """
-    # Parse the ensemble string
-    import re
-    match = re.match(r'r(\d+)i(\d+)p(\d+)f(\d+)', ensemble_str)
-
-    if not match:
-        return f"Invalid ensemble format: {ensemble_str}"
-
-    r, i, p, f = match.groups()
-
-    explanation = f"Ensemble member {ensemble_str}:\n"
-    explanation += f"  - Realization {r}: "
-    if int(r) == 1:
-        explanation += "First ensemble member (baseline initial conditions)\n"
-    else:
-        explanation += f"Ensemble member #{r} (different initial conditions for natural variability)\n"
-
-    explanation += f"  - Initialization method {i} (standard for SPEAR)\n"
-    explanation += f"  - Physics configuration {p} (standard for SPEAR)\n"
-    explanation += f"  - Forcing dataset {f} (standard for SPEAR)\n"
-
-    return explanation
